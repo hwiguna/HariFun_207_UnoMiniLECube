@@ -17,6 +17,7 @@
 */
 
 #include <MsTimer2.h>
+#include "Font.h"
 
 volatile bool cube[4][4][4] ;
 
@@ -168,20 +169,21 @@ void loop()
         { 3,3},{ 2,2},{ 1,1},{ 0,0}, // diagonal 2
     };
 
+    ScrollMessage("THX PCBWAY! ", 150);
+
     //Pattern3DUp(*corkScrew, sizeof(corkScrew) / 3, 6, false, XYZ, interval);
     //Pattern3DDown(*corkScrew, sizeof(corkScrew) / 3, 6, false, XYZ, interval);
     //Pattern3DUp(*corkScrew, sizeof(corkScrew) / 3, 6, true, XZY, interval);
     //Pattern3DDown(*corkScrew, sizeof(corkScrew) / 3, 6, false, YZX, interval); 
     //Pattern3DUp(*corkScrew, sizeof(corkScrew) / 3, 6, false, YZX, interval);
 
-    byte numFrames = 6;
-    for (int f = 0; f < numFrames; f++)
-    {
-        //AnimateRect(*spin, sizeof(spin) / 2 / numFrames, XYZ, f, interval);
-        //AnimateRect(*spin, sizeof(spin) / 2 / numFrames, XZY, f, interval);
-        AnimateRect(*spin, sizeof(spin) / 2 / numFrames, YZX, f, interval);
-    }
-
+    //byte numFrames = 6;
+    //for (int f = 0; f < numFrames; f++)
+    //{
+    //    //AnimateRect(*spin, sizeof(spin) / 2 / numFrames, XYZ, f, interval);
+    //    //AnimateRect(*spin, sizeof(spin) / 2 / numFrames, XZY, f, interval);
+    //    AnimateRect(*spin, sizeof(spin) / 2 / numFrames, YZX, f, interval);
+    //}
 
     //delay(1000);
 
@@ -539,8 +541,8 @@ void Animate(byte* pattern, byte frameLen, byte plane, byte frame, int interval)
     {
         for (int i = 0; i < frameLen; i++)
         {
-            byte x = pattern[(frame * frameLen + i)* 2 + 0];
-            byte y = pattern[(frame * frameLen + i )* 2 + 1];
+            byte x = pattern[(frame * frameLen + i) * 2 + 0];
+            byte y = pattern[(frame * frameLen + i) * 2 + 1];
             DrawDot(x, y, 3, d == 0);
         }
 
@@ -560,7 +562,7 @@ void AnimateRect(byte* pattern, byte frameLen, byte orientation, byte frame, int
             bool isOn = d == 0;
             //DrawDot(x, y, 0, d == 0);
             DrawDotOnPlane(x, y, 0, orientation, isOn);
-            if (i==0 || i==(frameLen-1))
+            if (i == 0 || i == (frameLen - 1))
             {
                 //DrawDot(x, y, 1, d == 0);
                 //DrawDot(x, y, 2, d == 0);
@@ -584,4 +586,50 @@ void Blink(int blinkRate)
     delay(blinkRate);
 }
 
+void ShiftLeft()
+{
+    // Shift Top layer
+    for (int x = 0; x < 3; x++)
+    {
+        for (int y = 0; y < 4; y++)
+            cube[x][y][3] = cube[x + 1][y][3];
+    }
 
+    // Shift Front Layer
+    for (int x = 0; x < 3; x++)
+    {
+        for (int z = 0; z < 3; z++)
+            cube[x][0][z] = cube[x + 1][0][z];
+    }
+}
+
+void ScrollMessage(String message, int interval)
+{
+    message.toUpperCase();
+
+    for (int charIndex = 0; charIndex < message.length(); charIndex++)
+    {
+        char ch = message[charIndex];
+        int alphaIndex = ch - ' ';
+        if (alphaIndex < 0) alphaIndex = 0;
+
+        for (int column = 0; column < 7; column++)// Each character is only 5 columns wide, but I loop two more times to create 2 pixel space betwen characters
+        {
+            // Shift one pixel left
+            ShiftLeft();
+
+            // Draw rightmost column
+            byte alphaBits = (column < 5) ? alphabets[alphaIndex][column] : 0; // sixth and seventh columns are always blank
+            // Topmost row in the alphabet bitmap is always off, and we only have 7 rows (4+3), so ignore highest bit of the font.
+            for (int row = 1; row < 8; row++) // font row 1,2,3,4 on top layer, row 5,6,7 on front layer
+            {
+                bool isOn = bitRead(alphaBits, 7 - row);
+                if (row < 5)
+                    cube[3][4 - row][3] = isOn;
+                else
+                    cube[3][0][7 - row] = isOn;
+            }
+            delay(interval);
+        }
+    }
+}
