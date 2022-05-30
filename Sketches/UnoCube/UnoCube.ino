@@ -124,7 +124,7 @@ void loop()
     //-- Wave --
     dly = 0; trail = true;
     int interval = 100;
-    //All(false);
+    All(false);
     byte shortJump[][2] = {
         { 0,0},{ 0,1},{ 0,2},{ 0,3},
         { 1,3},{ 1,2},{ 1,1},{ 1,0},
@@ -169,7 +169,7 @@ void loop()
         { 3,3},{ 2,2},{ 1,1},{ 0,0}, // diagonal 2
     };
 
-    ScrollMessage("THX PCBWAY! ", 150);
+    //ScrollMessage("THX PCBWAY! ", 150);
 
     //Pattern3DUp(*corkScrew, sizeof(corkScrew) / 3, 6, false, XYZ, interval);
     //Pattern3DDown(*corkScrew, sizeof(corkScrew) / 3, 6, false, XYZ, interval);
@@ -214,6 +214,12 @@ void loop()
     //for (int i = 0; i < 3; i++) // Blink 3 times
     //    Blink(1000); // Blink Rate
 
+    //-- Raise Cube --
+
+    RaiseCube(XYZ, 150);
+    delay(1000);
+    LowerCube(XYZ, 150);
+    delay(1000);
 }
 
 //=== Primitives ===
@@ -633,3 +639,65 @@ void ScrollMessage(String message, int interval)
         }
     }
 }
+
+
+
+// Pretty draw animated rect
+void SlowDrawRect(byte p, byte orientation, bool isOn, int interval)
+{
+    byte halfRect[][2] = {
+        { 1,3},{ 0,3},{ 0,2},{ 0,1},{ 0,0},{ 1,0}
+    };
+
+    for (int i = 0; i < sizeof(halfRect) / 2; i++)
+    {
+        byte x = halfRect[i][0];
+        byte y = halfRect[i][1];
+        DrawDotOnPlane(x, y, p, orientation, isOn);
+        DrawDotOnPlane(3 - x, y, p, orientation, isOn);
+        delay(interval);
+    }
+}
+
+void RaiseCube(byte orientation, int interval)
+{
+    // Animate rect at bottom of cube
+    SlowDrawRect(0, orientation, true, interval);
+    delay(interval);
+
+    // Animate that rect raising and leaving trail of edges
+    for (int z = 1; z < 4; z++)
+    {
+        // draw the rect on this layer
+        SlowDrawRect(z, orientation, true, 0);
+
+        // Draw the pillar trail
+        int q = z - 1;
+        DrawDotOnPlane(0, 0, q, orientation, true);
+        DrawDotOnPlane(0, 3, q, orientation, true);
+        DrawDotOnPlane(3, 0, q, orientation, true);
+        DrawDotOnPlane(3, 3, q, orientation, true);
+
+        delay(interval);
+
+        // erase the rect on this layer except the topmost
+        if (z<3)
+            SlowDrawRect(z, orientation, false, 0);
+    }
+}
+
+void LowerCube(byte orientation, int interval)
+{
+    // Animate that rect lowering and erasing pillars
+    for (int z = 3; z >= 0; z--)
+    {
+        // draw the rect on this layer
+        if (z>0) SlowDrawRect(z, orientation, false, 0);
+        delay(interval);
+    }
+
+    // Animate erasing rect at bottom of cube
+        delay(interval);
+    SlowDrawRect(0, orientation, false, interval);
+}
+
