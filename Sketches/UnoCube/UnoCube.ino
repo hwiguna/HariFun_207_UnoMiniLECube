@@ -9,7 +9,7 @@
    LEDs are wired with common Anode (+) per layer.
    4x4 Cathode (-) vertical pillars control each LED for all the layers.
 
-   All the LEDs are refreshed by a timer:
+   All the LEDs are refreshed by MsTimer2 every 3ms:
    1. For each layer, we ground (-) the cathodes of the LEDs we want to light up on that layer.
    2. We then, provide (+) for that layer.
    3. After n miliseconds, we turn off that layer, setup (-) for next layer, and then provide (+) for that layer.
@@ -19,18 +19,10 @@
 #include <MsTimer2.h>
 #include "Font.h"
 
-volatile bool cube[4][4][4] ;
+volatile bool cube[4][4][4] ; // This array is transferred to the actual LED cube by MsTimer2 every 3 ms
 
-//volatile byte layerPins[] = { A2, A3, A4, A5 };
-//volatile byte pillarPins[][4] = {
-//  { 0,1, 2, 3},
-//  { 4, 5, 6, 7},
-//  { 8, 9, 10, 11},
-//  { 12, 13, A0, A1}
-//};
-
-volatile byte layerPins[] = { 9, 8, 7, 4 };
-volatile byte pillarPins[][4] = {
+volatile byte layerPins[] = { 9, 8, 7, 4 }; // Arduino pins controlling level/layer.
+volatile byte pillarPins[][4] = { // Arduino pins controlling 4x4 layer that is powered by the layer pin.
     { 11, 10, 12, 13},
   { 6, 5, A4, A5},
   { 3,2,A2,A3},
@@ -40,42 +32,21 @@ volatile byte pillarPins[][4] = {
 int dly = 100; // 0=No Delay, Higher=slower.
 bool trail = false; // true:once lit, that led stays lit. false:turn off the previous led before lighting up the next one.
 
+const bool hasTrail = true;
+const bool noTrail = false;
+
+const bool on = true;
+const bool off = false;
+
 const byte XY = 0;
 const byte XZ = 1;
 const byte YZ = 2;
 
 const byte XYZ = 10;
 const byte XZY = 11;
-const byte YZX = 12;
-
+const byte ZXY = 12;
 
 #define DEBUG false
-
-void Refresh()
-{
-    static byte layer = 0;
-
-    // Turn off previous layer
-    //pinMode(layerPins[layer], INPUT); // common anode for this layer is now floating instead of HI/LO
-    digitalWrite(layerPins[layer], HIGH);
-
-    // Setup next layer
-    layer++;
-    if (layer > 4) layer = 0;
-
-    // Setup layer pattern for this layer
-    for (byte x = 0; x < 4; x++)
-    {
-        for (byte y = 0; y < 4; y++)
-        {
-            byte pillarPin = pillarPins[y][x];
-            digitalWrite(pillarPin, cube[x][y][layer] ? 1 : 0);
-        }
-    }
-    // Turn on this layer
-    //pinMode(layerPins[layer], OUTPUT);
-    digitalWrite(layerPins[layer], LOW); //TODO: flip this when we add layer transistor
-}
 
 void setup()
 {
@@ -83,7 +54,6 @@ void setup()
     // Setup layer pins as INPUTs! We will set each to OUTPUT one at a time in the refresh routine.
     for (byte i = 0; i < sizeof(layerPins); i++)
         pinMode(layerPins[i], OUTPUT);
-    //pinMode(layerPins[i], INPUT);
 
     // Setup pillar pins as output
     for (byte y = 0; y < 4; y++)
@@ -101,126 +71,47 @@ void setup()
 
 void loop()
 {
-    dly = 100;
-    trail = false;
-    ////-- Left-Right-Left --
-    //DrawPlaneToRight(0);
-    //DrawPlaneToLeft(2);
-    //DrawPlaneToRight(0);
-    //DrawPlaneToLeft(2);
-
-    ////-- Up-Down-Up --
-    //DrawPlaneToTop(0);
-    //DrawPlanetoBottom(2);
-    //DrawPlaneToTop(0);
-    //DrawPlanetoBottom(2);
-
-    ////-- Front-Back-Front --
-    //DrawPlaneToBack(0);
-    //DrawPlaneToFront(2);
-    //DrawPlaneToBack(0);
-    //DrawPlaneToFront(2);
-
-    //-- Wave --
-    dly = 0; trail = true;
-    int interval = 100;
-    All(false);
-    byte shortJump[][2] = {
-        { 0,0},{ 0,1},{ 0,2},{ 0,3},
-        { 1,3},{ 1,2},{ 1,1},{ 1,0},
-        { 2,0},{ 2,1},{ 2,2},{ 2,3},
-        { 3,3},{ 3,2},{ 3,1},{ 3,0},
-    };
-    byte hop[][2] = {
-        { 0,0},{ 0,1},{ 0,2},
-        { 1,3},
-        { 2,3},
-        { 3,2},{ 3,1},{ 3,0},
-    };
-
-    byte corkScrew[][3] = {
-        { 1,0,3},{ 2,0,3},
-        { 3,0,2},{ 3,0,1},
-        { 2,0,0},{ 1,0,0},
-        { 0,0,1},{ 0,0,2},
-
-        { 1,1,3},{ 2,1,3},
-        { 3,1,2},{ 3,1,1},
-        { 2,1,0},{ 1,1,0},
-        { 0,1,1},{ 0,1,2},
-        
-        { 1,2,3},{ 2,2,3},
-        { 3,2,2},{ 3,2,1},
-        { 2,2,0},{ 1,2,0},
-        { 0,2,1},{ 0,2,2},
-        
-        { 1,3,3},{ 2,3,3},
-        { 3,3,2},{ 3,3,1},
-        { 2,3,0},{ 1,3,0},
-        { 0,3,1},{ 0,3,2},
-    };
-
-    byte spin[][2] = {
-        { 0,1},{ 1,1}, { 2,2},{ 3,2}, // h1
-        { 0,2},{ 1,2},{ 2,1},{ 3,1}, // h2
-        { 0,3},{ 1,2},{ 2,1},{ 3,0}, //diagonal 1
-        { 1,2},{ 1,2},{ 2,1},{ 2,0}, //v1
-        { 2,3},{ 2,2},{ 1,1},{ 1,0}, //v2
-        { 3,3},{ 2,2},{ 1,1},{ 0,0}, // diagonal 2
-    };
-
-    //ScrollMessage("THX PCBWAY! ", 150);
-
-    //Pattern3DUp(*corkScrew, sizeof(corkScrew) / 3, 6, false, XYZ, interval);
-    //Pattern3DDown(*corkScrew, sizeof(corkScrew) / 3, 6, false, XYZ, interval);
-    //Pattern3DUp(*corkScrew, sizeof(corkScrew) / 3, 6, true, XZY, interval);
-    //Pattern3DDown(*corkScrew, sizeof(corkScrew) / 3, 6, false, YZX, interval); 
-    //Pattern3DUp(*corkScrew, sizeof(corkScrew) / 3, 6, false, YZX, interval);
-
-    //byte numFrames = 6;
-    //for (int f = 0; f < numFrames; f++)
-    //{
-    //    //AnimateRect(*spin, sizeof(spin) / 2 / numFrames, XYZ, f, interval);
-    //    //AnimateRect(*spin, sizeof(spin) / 2 / numFrames, XZY, f, interval);
-    //    AnimateRect(*spin, sizeof(spin) / 2 / numFrames, YZX, f, interval);
-    //}
-
-    //delay(1000);
-
-    //for (int y = 0; y < 4; y++)
-    //{
-    //    PatternUp(*circle, sizeof(circle) / 2, 6, true, XZ, y, interval);
-    //}
-
-    //PatternUp(*hop, sizeof(hop)/2, 3, XZ, interval);
-    //PatternDown(*hop, sizeof(hop) / 2, 3, XZ, interval);
-
-    ////PatternUp(*hop, sizeof(hop) / 2, 3, XY, interval);
-    ////PatternDown(*hop, sizeof(hop) / 2, 3, XY, interval);
-
-    //PatternUp(*hop, sizeof(hop) / 2, 3, YZ, interval);
-    //PatternDown(*hop, sizeof(hop) / 2, 3, YZ, interval);
-
-    ////-- Slowly Scan every pixel --
-    //trail = false; dly = 200;
-    //All(true); // Trail is still off, so it would erase its trail
-
-    ////-- Slowly fill the cube pixel by pixel --
-    //trail = true;
-    //All(true); // Go through all pixels again, but this time leave it on.
-
-    ////-- Blink --
-    //dly = 0; // Blink is actually instant fill ON followed by an instant fill OFF after a delay.
-    //for (int i = 0; i < 3; i++) // Blink 3 times
-    //    Blink(1000); // Blink Rate
-
-    //-- Raise Cube --
-
-    RaiseCube(XYZ, 150);
-    delay(1000);
-    LowerCube(XYZ, 150);
+    All(off);
+    RaiseAndLowerCube(100, 1000); // (Interval, Pause)
+    Scan(on, noTrail, 100); // Slowly Scan every pixel
+    Scan(on, hasTrail, 100); // Go through all pixels again, but this time leave it on.
+    Blinks(500, 3);
+    Sweeps();
+    JumpingWater();
+    Spinners();
+    Circles(XZY, 150); // (orientation, interval)
+    CorkScrews(60, 500); // (interval, pause)
+    ScrollMessage("THX PCBWAY! ", 150);
     delay(1000);
 }
+
+
+void Refresh()
+{
+    static byte layer = 0;
+
+    // Turn off previous layer
+    //pinMode(layerPins[layer], INPUT); // common anode for this layer is now floating instead of HI/LO
+    digitalWrite(layerPins[layer], HIGH);
+
+    // Setup next layer
+    layer++;
+    if (layer > 3) layer = 0;
+
+    // Setup layer pattern for this layer
+    for (byte x = 0; x < 4; x++)
+    {
+        for (byte y = 0; y < 4; y++)
+        {
+            byte pillarPin = pillarPins[y][x];
+            digitalWrite(pillarPin, cube[x][y][layer] ? 1 : 0);
+        }
+    }
+    // Turn on this layer
+    //pinMode(layerPins[layer], OUTPUT);
+    digitalWrite(layerPins[layer], LOW); //TODO: flip this when we add layer transistor
+}
+
 
 //=== Primitives ===
 
@@ -298,7 +189,6 @@ void DrawPlaneToLeft(byte startFrom)
     }
 }
 
-
 //-- Plane at Y --
 void DrawPlaneAtY(byte y, bool isOn)
 {
@@ -326,7 +216,6 @@ void DrawPlaneToFront(byte startFrom)
         if (!trail) DrawPlaneAtY(y, false);
     }
 }
-
 
 //-- Plane at Z --
 void DrawPlaneAtZ(byte z, bool isOn)
@@ -358,46 +247,155 @@ void DrawPlanetoBottom(byte startFrom)
 
 
 //== Effects ==
-void All(bool isOn)
+void Scan(bool isOn, bool leaveTrail, int interval)
 {
-    for (int z = 0; z < 4; z++)
+    for (byte z = 0; z < 4; z++)
     {
-        for (int y = 0; y < 4; y++)
+        for (byte y = 0; y < 4; y++)
         {
-            for (int x = 0; x < 4; x++)
+            for (byte x = 0; x < 4; x++)
             {
-                cube[x][y][z] = isOn; // ? 1 : 0;
-                if (dly != 0)
+                cube[x][y][z] = isOn;
+                if (interval != 0)
                 {
-                    delay(dly);
-                    if (!trail) cube[x][y][z] = false;
+                    delay(interval);
+                    if (!leaveTrail) cube[x][y][z] = false;
                 }
             }
         }
     }
 }
 
-void On()
+void All(bool isOn)
 {
-    for (int y = 0; y < 4; y++)
-        for (int x = 0; x < 4; x++)
-            for (int z = 0; z < 4; z++)
-                cube[x][y][z] = 1;
+    Scan(isOn, noTrail, 0);
+}
 
-    //cube[0][0][0] = false;
+void Sweeps()
+{
+    dly = 150;
+    trail = false;
+
+    //-- Front-Back-Front --
+    DrawPlaneToBack(0);
+    DrawPlaneToFront(2);
+    DrawPlaneToBack(0);
+    DrawPlaneToFront(2);
+    delay(dly);
+
+    //-- Left-Right-Left --
+    DrawPlaneToRight(0);
+    DrawPlaneToLeft(2); // test to here
+    DrawPlaneToRight(0);
+    DrawPlaneToLeft(2);
+    delay(dly);
+
+    //-- Up-Down-Up --
+    DrawPlaneToTop(0);
+    DrawPlanetoBottom(2);
+    DrawPlaneToTop(0);
+    DrawPlanetoBottom(2);
+    delay(dly);
 }
 
 
-void Off()
+void JumpingWater()
 {
-    for (int y = 0; y < 4; y++)
-        for (int x = 0; x < 4; x++)
-            for (int z = 0; z < 4; z++)
-                cube[x][y][z] = false;
+    dly = 0; trail = true;
+    int interval = 100;
+    byte hop[][2] = {
+        { 0,0},{ 0,1},{ 0,2},
+        { 1,3},
+        { 2,3},
+        { 3,2},{ 3,1},{ 3,0},
+    };
 
-    cube[0][0][0] = false;
+    // PatternUp(byte* pattern, int patternLen, int tailLen, bool wrapAround, byte plane, byte atDepth, int interval)
+    byte depth = 255;
+    PatternUp(*hop, sizeof(hop) / 2, 3, false, XZ, depth, interval);
+    PatternDown(*hop, sizeof(hop) / 2, 3, false, XZ, depth, interval);
+
+    PatternUp(*hop, sizeof(hop) / 2, 3, false, YZ, depth, interval);
+    PatternDown(*hop, sizeof(hop) / 2, 3, false, YZ, depth, interval);
 }
 
+void Spinner(byte orientation, int interval)
+{
+    byte spin[][2] = {
+        { 0,1},{ 1,1}, { 2,2},{ 3,2}, // h1
+        { 0,2},{ 1,2},{ 2,1},{ 3,1}, // h2
+        { 0,3},{ 1,2},{ 2,1},{ 3,0}, //diagonal 1
+        { 1,2},{ 1,2},{ 2,1},{ 2,0}, //v1
+        { 2,3},{ 2,2},{ 1,1},{ 1,0}, //v2
+        { 3,3},{ 2,2},{ 1,1},{ 0,0}, // diagonal 2
+    };
+
+    byte patternLen = sizeof(spin);
+    byte numFrames = 6; // h1, h2, diag1,  v1, v2, diag2
+    byte frameLen = patternLen / 2 / numFrames;
+    for (int n = 0; n < 2; n++) // How many times to play this animation?
+        for (int f = 0; f < numFrames; f++)
+            AnimateRect(*spin, frameLen, orientation, f, interval);
+}
+
+void Spinners()
+{
+    Spinner(XYZ, 150); delay(150);
+    Spinner(XZY, 150); delay(150);
+    Spinner(ZXY, 150); delay(150);
+}
+
+
+void CorkScrew(byte orientation, int interval)
+{
+    byte corkScrew[][3] = {
+        { 1,3,0},{ 2,3,0}, // Circle is on XY plane, Z upward
+        { 3,2,0},{ 3,1,0},
+        { 2,0,0},{ 1,0,0},
+        { 0,1,0},{ 0,2,0},
+
+        { 1,3,1},{ 2,3,1},
+        { 3,2,1},{ 3,1,1},
+        { 2,0,1},{ 1,0,1},
+        { 0,1,1},{ 0,2,1},
+        
+        { 1,3,2},{ 2,3,2},
+        { 3,2,2},{ 3,1,2},
+        { 2,0,2},{ 1,0,2},
+        { 0,1,2},{ 0,2,2},
+        
+        { 1,3,3},{ 2,3,3},
+        { 3,2,3},{ 3,1,3},
+        { 2,0,3},{ 1,0,3},
+        { 0,1,3},{ 0,2,3},
+    };
+
+    Pattern3DUp(*corkScrew, sizeof(corkScrew) / 3, 6, false, orientation, interval);
+    Pattern3DDown(*corkScrew, sizeof(corkScrew) / 3, 6, false, orientation, interval);
+}
+
+void CorkScrews(int interval, int pause)
+{
+    CorkScrew(XYZ, interval); delay(pause); // Circle is on XY plane,Z upward
+    CorkScrew(XZY, interval); delay(pause);
+    CorkScrew(ZXY, interval); delay(pause);
+}
+
+
+void Circles(byte orientation, int interval)
+{
+    byte circle[][2] = {
+        { 1,3},{ 2,3}, // Circle is on XY plane, Z upward
+        { 3,2},{ 3,1},
+        { 2,0},{ 1,0},
+        { 0,1},{ 0,2}
+    };
+
+    for (int n = 0; n < 3; n++)
+        PatternUp(*circle, sizeof(circle) / 2, 6, true, XZ, 255, interval);
+    //TODO: convert planes to orientation
+    All(off);
+}
 
 void DrawLineThruPlane(byte c, byte r, byte plane, boolean isOn)
 {
@@ -417,7 +415,7 @@ void DrawDotOnPlane(byte x, byte y, byte p, byte orientation, boolean isOn)
     {
         case XYZ: DrawDot(x, y, p, isOn); break;
         case XZY: DrawDot(x, p, y, isOn); break;
-        case YZX: DrawDot(p, x, y, isOn); break;
+        case ZXY: DrawDot(p, x, y, isOn); break;
     }
 
 }
@@ -457,6 +455,35 @@ void PatternUp(byte* pattern, int patternLen, int tailLen, bool wrapAround, byte
         delay(interval);
     }
 }
+
+void PatternDown(byte* pattern, byte patternLen, int tailLen, bool wrapAround, byte plane, byte atDepth, int interval)
+{
+    for (int i = patternLen - 1; i >= -tailLen; i--)
+    {
+        if (i >= 0)
+        {
+            byte x = pattern[i * 2 + 0];
+            byte y = pattern[i * 2 + 1];
+            if (atDepth == 255)
+                DrawLineThruPlane(x, y, plane, true);
+            else
+                DrawDotOnPlane(x, y, plane, atDepth, true);
+        }
+
+        byte k = i + tailLen - 1;
+        if (k <= patternLen)
+        {
+            byte x = pattern[k * 2 + 0];
+            byte y = pattern[k * 2 + 1];
+            if (atDepth == 255)
+                DrawLineThruPlane(x, y, plane, false);
+            else
+                DrawDotOnPlane(x, y, plane, atDepth, false);
+        }
+        delay(interval);
+    }
+}
+
 
 void Pattern3DUp(byte* pattern, int patternLen, int tailLen, bool wrapAround, byte orientation, int interval)
 {
@@ -519,26 +546,6 @@ void Pattern3DDown(byte* pattern, int patternLen, int tailLen, bool wrapAround, 
     }
 }
 
-void PatternDown(byte* pattern, byte patternLen, int tailLen, byte plane, int interval)
-{
-    for (int i = patternLen - 1; i >= -tailLen; i--)
-    {
-        if (i >= 0)
-        {
-            byte x = pattern[i * 2 + 0];
-            byte y = pattern[i * 2 + 1];
-            DrawLineThruPlane(x, y, plane, true);
-        }
-        byte k = i + tailLen - 1;
-        if (k <= patternLen)
-        {
-            byte x = pattern[k * 2 + 0];
-            byte y = pattern[k * 2 + 1];
-            DrawLineThruPlane(x, y, plane, false);
-        }
-        delay(interval);
-    }
-}
 
 void Animate(byte* pattern, byte frameLen, byte plane, byte frame, int interval)
 {
@@ -586,11 +593,16 @@ void AnimateRect(byte* pattern, byte frameLen, byte orientation, byte frame, int
 
 void Blink(int blinkRate)
 {
-    All(true);
-    delay(blinkRate);
-    All(false);
-    delay(blinkRate);
+    All(on); delay(blinkRate);
+    All(off); delay(blinkRate);
 }
+
+void Blinks(int blinkRate, byte howManyTimes)
+{
+    for (int i = 0; i < howManyTimes; i++)
+        Blink(blinkRate);
+}
+
 
 void ShiftLeft()
 {
@@ -681,7 +693,7 @@ void RaiseCube(byte orientation, int interval)
         delay(interval);
 
         // erase the rect on this layer except the topmost
-        if (z<3)
+        if (z < 3)
             SlowDrawRect(z, orientation, false, 0);
     }
 }
@@ -692,12 +704,21 @@ void LowerCube(byte orientation, int interval)
     for (int z = 3; z >= 0; z--)
     {
         // draw the rect on this layer
-        if (z>0) SlowDrawRect(z, orientation, false, 0);
+        if (z > 0) SlowDrawRect(z, orientation, false, 0);
         delay(interval);
     }
 
     // Animate erasing rect at bottom of cube
-        delay(interval);
+    delay(interval);
     SlowDrawRect(0, orientation, false, interval);
 }
+
+void RaiseAndLowerCube(int interval, int pause)
+{
+    RaiseCube(XYZ, interval);
+    delay(pause);
+    LowerCube(XYZ, interval);
+    delay(pause);
+}
+
 
