@@ -1,0 +1,75 @@
+Arduino Uno Mini LED Cube
+[] Better Pillar Jig
+[] No more I/O pins
+[] Does the built-in LED remain off?
+[] Measure current usage. Layer Transistor unnecessary?
+[] MsTimer2
+[] Write more effects
+[] Start working on PCB? Hmm, pending transistor.
+
+Lesson learned:
+- Setting output pillar pins as inputs to make the float did not work.
+I suspect switching pinMode takes too long that it interferes with the interrupt timing.
+
+
+Kicad screw ups
+- I put everything on top copper, when actually I want the top to be black and everything soldered on bottom.
+- Kicad now has tools to move things from layer to another, but I still had to deal with all the wiring
+When wire is moved from back to front it mirrors!
+- But good news is I discovered Kicad's new curved rats nest. That's awesome! You can see the connections much easier.
+- There's not much room, so I decided not to add transistors.
+- Had to change plan to use pins nearby rather than numerical sequenced
+- Will need to retest using different IO Pin for common layer grounding.
+- For gold to show up, it must have mask. Thanks to Kicad's 3D, or I would not have discovered this mistake.
+- Overlaps trigger DRC (Design Requirement Checks): Courtyard, silk clipped by mask.
+
+KiCad improvements since last time I used it:
+- No more export import net list
+- Keep dropping same part
+- Curved rats nest
+
+Kicad Cool things:
+- 3D really helped me catch mistakes (backward layer, texts, missing mask
+- Curved rats nest REALLY help visualizing connections before tracks are laid down
+
+Rewire breadboard cube and alter code.
+
+https://www.amazon.com/Excellent-Quality-Forming-Machine-Equipmemt/dp/B0067FFW6E
+
+
+=== SCRIPT ===
+[Quick montage]
+
+[PCBWay logo]
+This video is sponsored by PCBWay. Thanks Elaine!
+
+[Intro]
+The Arduino Uno Mini LE came out at the end of 2021. At $50 each, it is not cheap, so I decided not to get one.
+
+I don't know what posessed me, but I a few weeks ago I decided to buy one.
+Actually, I also got another one for you. More about that later.
+
+You've probably seen pictures of this Uno mini limited edition.
+But it's not until I held it in my own hands, I realized how tiny it is.
+So tiny that the headers are half the size of standard Arduinos.
+[show male headers]
+Other than it's size, it really is an Arduino Uno. Same ATmega328P as the Uno, same clock speed, same I/O pins.
+It uses a USB C connector instead of USB Micro, so that's a step up.
+
+So, once I got it, it was kinda of a let down.
+Um, yeah, so I got another Arduino. Very adorable and all, but now what?!
+
+I don't know about you, but most of my project ideas stems from playing.
+So, I just started playing with it.  Blinking, reading analog port, multiplexing.
+That's when I realize that the Uno Mini just like the Uno has EXACTLY the number of I/O pins to directly
+control a 4x4x4 LED cube.
+
+
+
+I discovered some cool things while playing.  For instance, these headers are so close to each other that it is
+impossible to plug two jumper wires next to each other.
+But they must've already thought of that and they've made the female headers on the Uno Mini to be DOUBLE SIDED!
+I've never seen anything like it.
+You need a small diameter jumper wire to poke from the other side.  Not all my jumpers fit from the other side.
+I think it just depends on the batch of jumper wire.
+
