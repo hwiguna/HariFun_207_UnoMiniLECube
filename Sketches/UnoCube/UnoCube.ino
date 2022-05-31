@@ -38,13 +38,13 @@ const bool noTrail = false;
 const bool on = true;
 const bool off = false;
 
-const byte XY = 0;
-const byte XZ = 1;
-const byte YZ = 2;
+//const byte XY = 0;
+//const byte XZ = 1;
+//const byte YZ = 2;
 
-const byte XYZ = 10;
-const byte XZY = 11;
-const byte ZXY = 12;
+const byte alongZ = 10;
+const byte alongY = 11;
+const byte alongX = 12;
 
 #define DEBUG false
 
@@ -79,7 +79,7 @@ void loop()
     Sweeps();
     JumpingWater();
     Spinners();
-    Circles(XZY, 150); // (orientation, interval)
+    Circles(alongY, 150); // (alongWhichAxis, interval)
     CorkScrews(60, 500); // (interval, pause)
     ScrollMessage("THX PCBWAY! ", 150);
     delay(1000);
@@ -143,19 +143,19 @@ void DrawLineDown(byte x, byte y)
     }
 }
 
-void DrawLineAtXZ(byte x, byte z, bool isOn)
+void DrawLineThruXZ(byte x, byte z, bool isOn)
 {
     for (byte y = 0; y < 4; y++)
         cube[x][y][z] = isOn;
 }
 
-void DrawLineAtXY(byte x, byte y, bool isOn)
+void DrawLineThruXY(byte x, byte y, bool isOn)
 {
     for (byte z = 0; z < 4; z++)
         cube[x][y][z] = isOn;
 }
 
-void DrawLineAtYZ(byte y, byte z, bool isOn)
+void DrawLineThruYZ(byte y, byte z, bool isOn)
 {
     for (byte x = 0; x < 4; x++)
         cube[x][y][z] = isOn;
@@ -312,14 +312,14 @@ void JumpingWater()
 
     // PatternUp(byte* pattern, int patternLen, int tailLen, bool wrapAround, byte plane, byte atDepth, int interval)
     byte depth = 255;
-    PatternUp(*hop, sizeof(hop) / 2, 3, false, XZ, depth, interval);
-    PatternDown(*hop, sizeof(hop) / 2, 3, false, XZ, depth, interval);
+    PatternUp(*hop, sizeof(hop) / 2, 3, false, alongY, depth, interval);
+    PatternDown(*hop, sizeof(hop) / 2, 3, false, alongY, depth, interval);
 
-    PatternUp(*hop, sizeof(hop) / 2, 3, false, YZ, depth, interval);
-    PatternDown(*hop, sizeof(hop) / 2, 3, false, YZ, depth, interval);
+    PatternUp(*hop, sizeof(hop) / 2, 3, false, alongX, depth, interval);
+    PatternDown(*hop, sizeof(hop) / 2, 3, false, alongX, depth, interval);
 }
 
-void Spinner(byte orientation, int interval)
+void Spinner(byte alongWhichAxis, int interval)
 {
     byte spin[][2] = {
         { 0,1},{ 1,1}, { 2,2},{ 3,2}, // h1
@@ -335,18 +335,18 @@ void Spinner(byte orientation, int interval)
     byte frameLen = patternLen / 2 / numFrames;
     for (int n = 0; n < 2; n++) // How many times to play this animation?
         for (int f = 0; f < numFrames; f++)
-            AnimateRect(*spin, frameLen, orientation, f, interval);
+            AnimateRect(*spin, frameLen, alongWhichAxis, f, interval);
 }
 
 void Spinners()
 {
-    Spinner(XYZ, 150); delay(150);
-    Spinner(XZY, 150); delay(150);
-    Spinner(ZXY, 150); delay(150);
+    Spinner(alongZ, 150); delay(150);
+    Spinner(alongY, 150); delay(150);
+    Spinner(alongX, 150); delay(150);
 }
 
 
-void CorkScrew(byte orientation, int interval)
+void CorkScrew(byte alongWhichAxis, int interval)
 {
     byte corkScrew[][3] = {
         { 1,3,0},{ 2,3,0}, // Circle is on XY plane, Z upward
@@ -370,19 +370,19 @@ void CorkScrew(byte orientation, int interval)
         { 0,1,3},{ 0,2,3},
     };
 
-    Pattern3DUp(*corkScrew, sizeof(corkScrew) / 3, 6, false, orientation, interval);
-    Pattern3DDown(*corkScrew, sizeof(corkScrew) / 3, 6, false, orientation, interval);
+    Pattern3DUp(*corkScrew, sizeof(corkScrew) / 3, 6, false, alongWhichAxis, interval);
+    Pattern3DDown(*corkScrew, sizeof(corkScrew) / 3, 6, false, alongWhichAxis, interval);
 }
 
 void CorkScrews(int interval, int pause)
 {
-    CorkScrew(XYZ, interval); delay(pause); // Circle is on XY plane,Z upward
-    CorkScrew(XZY, interval); delay(pause);
-    CorkScrew(ZXY, interval); delay(pause);
+    CorkScrew(alongZ, interval); delay(pause); // Circle is on XY plane,Z upward
+    CorkScrew(alongY, interval); delay(pause);
+    CorkScrew(alongX, interval); delay(pause);
 }
 
 
-void Circles(byte orientation, int interval)
+void Circles(byte alongWhichAxis, int interval)
 {
     byte circle[][2] = {
         { 1,3},{ 2,3}, // Circle is on XY plane, Z upward
@@ -392,30 +392,29 @@ void Circles(byte orientation, int interval)
     };
 
     for (int n = 0; n < 3; n++)
-        PatternUp(*circle, sizeof(circle) / 2, 6, true, XZ, 255, interval);
-    //TODO: convert planes to orientation
+        PatternUp(*circle, sizeof(circle) / 2, 6, true, alongWhichAxis, 255, interval);
     All(off);
 }
 
-void DrawLineThruPlane(byte c, byte r, byte plane, boolean isOn)
+void DrawLineThruPlane(byte c, byte r, byte alongWhichAxis, boolean isOn)
 {
     //Serial.println(  String(c) + "," + String(r) + ": " + (isOn ? "ON" : "off"));
-    switch (plane)
+    switch (alongWhichAxis)
     {
-        case XY: DrawLineAtXY(c, r, isOn); break;
-        case XZ: DrawLineAtXZ(c, r, isOn); break;
-        case YZ: DrawLineAtYZ(c, r, isOn); break;
+        case alongZ: DrawLineThruXY(c, r, isOn); break; // line is along Z axis
+        case alongY: DrawLineThruXZ(c, r, isOn); break; // Line is along Y axis
+        case alongX: DrawLineThruYZ(c, r, isOn); break; // Line is along X asix
     }
 }
 
-void DrawDotOnPlane(byte x, byte y, byte p, byte orientation, boolean isOn)
+void DrawDotOnPlane(byte x, byte y, byte p, byte alongWhichAxis, boolean isOn)
 {
     //Serial.println(  String(c) + "," + String(r) + ": " + (isOn ? "ON" : "off"));
-    switch (orientation)
+    switch (alongWhichAxis)
     {
-        case XYZ: DrawDot(x, y, p, isOn); break;
-        case XZY: DrawDot(x, p, y, isOn); break;
-        case ZXY: DrawDot(p, x, y, isOn); break;
+        case alongZ: DrawDot(x, y, p, isOn); break; // point p is along Z axis
+        case alongY: DrawDot(x, p, y, isOn); break; // point p is along Y axis
+        case alongX: DrawDot(p, x, y, isOn); break; // Point p is along X axis
     }
 
 }
@@ -485,7 +484,7 @@ void PatternDown(byte* pattern, byte patternLen, int tailLen, bool wrapAround, b
 }
 
 
-void Pattern3DUp(byte* pattern, int patternLen, int tailLen, bool wrapAround, byte orientation, int interval)
+void Pattern3DUp(byte* pattern, int patternLen, int tailLen, bool wrapAround, byte alongWhichAxis, int interval)
 {
     if (DEBUG) Serial.println();
     for (int i = 0; i < (patternLen + (wrapAround ? 0 : tailLen)); i++)
@@ -498,7 +497,7 @@ void Pattern3DUp(byte* pattern, int patternLen, int tailLen, bool wrapAround, by
         byte x = pattern[k * 3 + 0];
         byte y = pattern[k * 3 + 1];
         byte z = pattern[k * 3 + 2];
-        DrawDotOnPlane(x, y, z, orientation, false);
+        DrawDotOnPlane(x, y, z, alongWhichAxis, false);
 
         if (i < patternLen)
         {
@@ -507,7 +506,7 @@ void Pattern3DUp(byte* pattern, int patternLen, int tailLen, bool wrapAround, by
             byte x = pattern[j * 3 + 0];
             byte y = pattern[j * 3 + 1];
             byte z = pattern[j * 3 + 2];
-            DrawDotOnPlane(x, y, z, orientation, true);
+            DrawDotOnPlane(x, y, z, alongWhichAxis, true);
         }
 
         if (DEBUG) Serial.println();
@@ -516,7 +515,7 @@ void Pattern3DUp(byte* pattern, int patternLen, int tailLen, bool wrapAround, by
 }
 
 
-void Pattern3DDown(byte* pattern, int patternLen, int tailLen, bool wrapAround, byte orientation, int interval)
+void Pattern3DDown(byte* pattern, int patternLen, int tailLen, bool wrapAround, byte alongWhichAxis, int interval)
 {
     if (DEBUG) Serial.println();
     for (int i = patternLen - 1; i >= (wrapAround ? 0 : -tailLen); i--)
@@ -529,7 +528,7 @@ void Pattern3DDown(byte* pattern, int patternLen, int tailLen, bool wrapAround, 
         byte x = pattern[k * 3 + 0];
         byte y = pattern[k * 3 + 1];
         byte z = pattern[k * 3 + 2];
-        DrawDotOnPlane(x, y, z, orientation, false);
+        DrawDotOnPlane(x, y, z, alongWhichAxis, false);
 
         if (i >= 0)
         {
@@ -538,7 +537,7 @@ void Pattern3DDown(byte* pattern, int patternLen, int tailLen, bool wrapAround, 
             byte x = pattern[j * 3 + 0];
             byte y = pattern[j * 3 + 1];
             byte z = pattern[j * 3 + 2];
-            DrawDotOnPlane(x, y, z, orientation, true);
+            DrawDotOnPlane(x, y, z, alongWhichAxis, true);
         }
 
         if (DEBUG) Serial.println();
@@ -563,7 +562,7 @@ void Animate(byte* pattern, byte frameLen, byte plane, byte frame, int interval)
     }
 }
 
-void AnimateRect(byte* pattern, byte frameLen, byte orientation, byte frame, int interval)
+void AnimateRect(byte* pattern, byte frameLen, byte alongWhichAxis, byte frame, int interval)
 {
     //-- Current frame twice: once to draw, second to erase--
     for (int d = 0; d < 2; d++)
@@ -574,16 +573,16 @@ void AnimateRect(byte* pattern, byte frameLen, byte orientation, byte frame, int
             byte y = pattern[(frame * frameLen + i) * 2 + 1];
             bool isOn = d == 0;
             //DrawDot(x, y, 0, d == 0);
-            DrawDotOnPlane(x, y, 0, orientation, isOn);
+            DrawDotOnPlane(x, y, 0, alongWhichAxis, isOn);
             if (i == 0 || i == (frameLen - 1))
             {
                 //DrawDot(x, y, 1, d == 0);
                 //DrawDot(x, y, 2, d == 0);
-                DrawDotOnPlane(x, y, 1, orientation, isOn);
-                DrawDotOnPlane(x, y, 2, orientation, isOn);
+                DrawDotOnPlane(x, y, 1, alongWhichAxis, isOn);
+                DrawDotOnPlane(x, y, 2, alongWhichAxis, isOn);
             }
             //DrawDot(x, y, 3, d == 0);
-            DrawDotOnPlane(x, y, 3, orientation, isOn);
+            DrawDotOnPlane(x, y, 3, alongWhichAxis, isOn);
         }
 
         if (d == 0) delay(interval);
@@ -655,7 +654,7 @@ void ScrollMessage(String message, int interval)
 
 
 // Pretty draw animated rect
-void SlowDrawRect(byte p, byte orientation, bool isOn, int interval)
+void SlowDrawRect(byte p, byte alongWhichAxis, bool isOn, int interval)
 {
     byte halfRect[][2] = {
         { 1,3},{ 0,3},{ 0,2},{ 0,1},{ 0,0},{ 1,0}
@@ -665,59 +664,59 @@ void SlowDrawRect(byte p, byte orientation, bool isOn, int interval)
     {
         byte x = halfRect[i][0];
         byte y = halfRect[i][1];
-        DrawDotOnPlane(x, y, p, orientation, isOn);
-        DrawDotOnPlane(3 - x, y, p, orientation, isOn);
+        DrawDotOnPlane(x, y, p, alongWhichAxis, isOn);
+        DrawDotOnPlane(3 - x, y, p, alongWhichAxis, isOn);
         delay(interval);
     }
 }
 
-void RaiseCube(byte orientation, int interval)
+void RaiseCube(byte alongWhichAxis, int interval)
 {
     // Animate rect at bottom of cube
-    SlowDrawRect(0, orientation, true, interval);
+    SlowDrawRect(0, alongWhichAxis, true, interval);
     delay(interval);
 
     // Animate that rect raising and leaving trail of edges
     for (int z = 1; z < 4; z++)
     {
         // draw the rect on this layer
-        SlowDrawRect(z, orientation, true, 0);
+        SlowDrawRect(z, alongWhichAxis, true, 0);
 
         // Draw the pillar trail
         int q = z - 1;
-        DrawDotOnPlane(0, 0, q, orientation, true);
-        DrawDotOnPlane(0, 3, q, orientation, true);
-        DrawDotOnPlane(3, 0, q, orientation, true);
-        DrawDotOnPlane(3, 3, q, orientation, true);
+        DrawDotOnPlane(0, 0, q, alongWhichAxis, true);
+        DrawDotOnPlane(0, 3, q, alongWhichAxis, true);
+        DrawDotOnPlane(3, 0, q, alongWhichAxis, true);
+        DrawDotOnPlane(3, 3, q, alongWhichAxis, true);
 
         delay(interval);
 
         // erase the rect on this layer except the topmost
         if (z < 3)
-            SlowDrawRect(z, orientation, false, 0);
+            SlowDrawRect(z, alongWhichAxis, false, 0);
     }
 }
 
-void LowerCube(byte orientation, int interval)
+void LowerCube(byte alongWhichAxis, int interval)
 {
     // Animate that rect lowering and erasing pillars
     for (int z = 3; z >= 0; z--)
     {
         // draw the rect on this layer
-        if (z > 0) SlowDrawRect(z, orientation, false, 0);
+        if (z > 0) SlowDrawRect(z, alongWhichAxis, false, 0);
         delay(interval);
     }
 
     // Animate erasing rect at bottom of cube
     delay(interval);
-    SlowDrawRect(0, orientation, false, interval);
+    SlowDrawRect(0, alongWhichAxis, false, interval);
 }
 
 void RaiseAndLowerCube(int interval, int pause)
 {
-    RaiseCube(XYZ, interval);
+    RaiseCube(alongZ, interval);
     delay(pause);
-    LowerCube(XYZ, interval);
+    LowerCube(alongZ, interval);
     delay(pause);
 }
 
