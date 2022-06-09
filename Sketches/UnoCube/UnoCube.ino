@@ -21,13 +21,24 @@
 
 volatile bool cube[4][4][4] ; // This array is transferred to the actual LED cube by MsTimer2 every 3 ms
 
-volatile byte layerPins[] = { 9, 8, 7, 4 }; // Arduino pins controlling level/layer.
-volatile byte pillarPins[][4] = { // Arduino pins controlling 4x4 layer that is powered by the layer pin.
-    { 11, 10, 12, 13},
-  { 6, 5, A4, A5},
-  { 3,2,A2,A3},
-  { 1,0,A0, A1}
+volatile byte layerPins[] = { 9, 8, 7, 4 }; // Arduino pins controlling layer/level/tier (Z axis)
+
+// USB connector is FRONT side of cube
+//volatile byte pillarPins[][4] = { // Arduino pins controlling the 4x4 horizontal layer (X-Y axes)
+//    { 11, 10, 12, 13},
+//  { 6, 5, A1, A0},
+//  { 3,2,A3, A2},
+//  { 1,0,A5, A4}
+//};
+
+// USB connector is LEFT side of cube
+volatile byte pillarPins[][4] = { // Arduino pins controlling the 4x4 horizontal layer (X-Y axes)
+  { 13,A0,A2,A4},
+  { 12,A1,A3,A5},
+  { 10,5,2,0},
+  { 11,6,3,1},
 };
+
 
 int dly = 100; // 0=No Delay, Higher=slower.
 bool trail = false; // true:once lit, that led stays lit. false:turn off the previous led before lighting up the next one.
@@ -37,10 +48,6 @@ const bool noTrail = false;
 
 const bool on = true;
 const bool off = false;
-
-//const byte XY = 0;
-//const byte XZ = 1;
-//const byte YZ = 2;
 
 const byte alongZ = 10;
 const byte alongY = 11;
@@ -65,15 +72,19 @@ void setup()
         }
     }
 
+
     MsTimer2::set(3, Refresh); // interval in ms
     MsTimer2::start();
+
+    All(on);
+    delay(5000);
 }
 
 void loop()
 {
     All(off);
     RaiseAndLowerCube(100, 1000); // (Interval, Pause)
-    Scan(on, noTrail, 100); // Slowly Scan every pixel
+    //Scan(on, noTrail, 100); // Slowly Scan every pixel
     Scan(on, hasTrail, 100); // Go through all pixels again, but this time leave it on.
     Blinks(500, 3);
     Sweeps();
@@ -81,10 +92,9 @@ void loop()
     Spinners();
     Circles(alongY, 150); // (alongWhichAxis, interval)
     CorkScrews(60, 500); // (interval, pause)
-    ScrollMessage("THX PCBWAY! ", 150);
+    ScrollMessage("BE KIND", 250);
     delay(1000);
 }
-
 
 void Refresh()
 {
@@ -115,7 +125,7 @@ void Refresh()
 
 //=== Primitives ===
 
-//-- Dot --
+//-- Dots --
 void DrawDot(byte x, byte y, byte z, bool isOn)
 {
     cube[x][y][z] = isOn;
@@ -403,7 +413,7 @@ void DrawLineThruPlane(byte c, byte r, byte alongWhichAxis, boolean isOn)
     {
         case alongZ: DrawLineThruXY(c, r, isOn); break; // line is along Z axis
         case alongY: DrawLineThruXZ(c, r, isOn); break; // Line is along Y axis
-        case alongX: DrawLineThruYZ(c, r, isOn); break; // Line is along X asix
+        case alongX: DrawLineThruYZ(c, r, isOn); break; // Line is along X axis
     }
 }
 
@@ -719,5 +729,3 @@ void RaiseAndLowerCube(int interval, int pause)
     LowerCube(alongZ, interval);
     delay(pause);
 }
-
-
