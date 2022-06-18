@@ -33,7 +33,7 @@ volatile byte layerPins[] = { 9, 8, 7, 4 }; // Arduino pins controlling layer/le
 
 // USB connector is LEFT side of cube
 volatile byte pillarPins[][4] = { // Arduino pins controlling the 4x4 horizontal layer (X-Y axes)
-  { 13,A0,A2,A4},
+    { 13,A0,A2,A4},
   { 12,A1,A3,A5},
   { 10,5,2,0},
   { 11,6,3,1},
@@ -77,22 +77,24 @@ void setup()
     MsTimer2::start();
 
     All(on);
-    delay(5000);
+    delay(1000);
 }
 
 void loop()
 {
     All(off);
-    RaiseAndLowerCube(100, 1000); // (Interval, Pause)
-    //Scan(on, noTrail, 100); // Slowly Scan every pixel
-    Scan(on, hasTrail, 100); // Go through all pixels again, but this time leave it on.
-    Blinks(500, 3);
-    Sweeps();
-    JumpingWater();
-    Spinners();
-    Circles(alongY, 150); // (alongWhichAxis, interval)
-    CorkScrews(60, 500); // (interval, pause)
-    ScrollMessage("BE KIND", 250);
+    Hat2D(150);
+    //Hat3D(150);
+    //RaiseAndLowerCube(100, 1000); // (Interval, Pause)
+    ////Scan(on, noTrail, 100); // Slowly Scan every pixel
+    //Scan(on, hasTrail, 100); // Go through all pixels again, but this time leave it on.
+    //Blinks(500, 3);
+    //Sweeps();
+    //JumpingWater();
+    //Spinners();
+    //Circles(alongY, 150); // (alongWhichAxis, interval)
+    //CorkScrews(60, 500); // (interval, pause)
+    //ScrollMessage("BE KIND", 250);
     delay(1000);
 }
 
@@ -556,7 +558,15 @@ void Pattern3DDown(byte* pattern, int patternLen, int tailLen, bool wrapAround, 
 }
 
 
-void Animate(byte* pattern, byte frameLen, byte plane, byte frame, int interval)
+void DrawFrame(byte* pattern, byte frameLen, byte alongWhichAxis, byte frame, byte dot, byte offset, bool isOn)
+{
+    byte x = pattern[(frame * frameLen + dot) * 2 + 0];
+    byte y = pattern[(frame * frameLen + dot) * 2 + 1];
+    DrawDotOnPlane(x, y, offset, alongWhichAxis, isOn);
+}
+
+
+void Animate(byte* pattern, byte frameLen, byte alongWhichAxis, byte frame, int interval)
 {
     //-- Current frame twice: once to draw, second to erase--
     for (int d = 0; d < 2; d++)
@@ -565,7 +575,9 @@ void Animate(byte* pattern, byte frameLen, byte plane, byte frame, int interval)
         {
             byte x = pattern[(frame * frameLen + i) * 2 + 0];
             byte y = pattern[(frame * frameLen + i) * 2 + 1];
-            DrawDot(x, y, 3, d == 0);
+            bool isOn = d == 0;
+            //DrawDot(x, y, 3, isOn);
+            DrawDotOnPlane(x, y, 0, alongY, isOn);
         }
 
         if (d == 0) delay(interval);
@@ -598,6 +610,8 @@ void AnimateRect(byte* pattern, byte frameLen, byte alongWhichAxis, byte frame, 
         if (d == 0) delay(interval);
     }
 }
+
+
 
 
 void Blink(int blinkRate)
@@ -729,3 +743,108 @@ void RaiseAndLowerCube(int interval, int pause)
     LowerCube(alongZ, interval);
     delay(pause);
 }
+
+
+
+void Hat2D(int interval)
+{
+    byte hat[][2] = {
+        { 0,0}, { 0,0},{ 1,0}, { 2,0},{ 3,0}, { 3,0}, // bottom line only
+       { 0,0}, { 0,0},{ 1,1}, { 2,1},{ 3,0}, { 3,0}, // bottom middle up one
+       { 0,1}, { 0,1},{ 1,2}, { 2,2},{ 3,1}, { 3,1}, // bottom middle up two
+       { 0,1}, { 0,2},{ 1,3}, { 2,3},{ 3,2}, { 3,1}, // bottom middle up three
+
+       { 0,3}, { 0,2},{ 1,2}, { 2,2},{ 3,2}, { 3,3}, // bottom middle down, side up
+       { 0,2}, { 0,2},{ 1,1}, { 2,1},{ 3,2}, { 3,2}, // bottom middle down more, keep side
+       { 0,1}, { 0,2},{ 1,0}, { 2,0},{ 3,2}, { 3,1}, // bottom middle down more, keep side for one more frame
+       { 0,1}, { 0,1},{ 1,0}, { 2,0},{ 3,1}, { 3,1}, // bottom middle already bottom out, move side down
+    };
+
+    byte patternLen = sizeof(hat);
+    byte numFrames = 7;
+    byte frameLen = patternLen / 2 / numFrames;
+    for (int n = 0; n < 7; n++) // How many times to play this animation?
+        for (int f = 0; f < numFrames; f++)
+        {
+            for (int d = 0; d < 2; d++) //-- Current frame twice: once to draw, second to erase--
+            {
+                bool isOn = d == 0;
+                for (int dot = 0; dot < frameLen; dot++)
+                {
+                    DrawFrame(*hat, frameLen, alongY, f, dot, 0, isOn);
+                    DrawFrame(*hat, frameLen, alongX, f, dot, 0, isOn);
+                    DrawFrame(*hat, frameLen, alongY, f, dot, 3, isOn);
+                    DrawFrame(*hat, frameLen, alongX, f, dot, 3, isOn);
+                }
+                if (d == 0) delay(interval);
+            }
+        }
+}
+
+// Animated 3D hat
+void Hat3D(int interval)
+{
+    byte hat[][2] = {
+        { 0,0}, { 0,0},{ 1,0}, // bottom line only
+       { 0,0}, { 0,0},{ 1,1}, // bottom middle up one
+       { 0,1}, { 0,1},{ 1,2}, // bottom middle up two
+       { 0,1}, { 0,2},{ 1,3}, // bottom middle up three
+
+       { 0,3}, { 0,2},{ 1,2}, // bottom middle down, side up
+       { 0,2}, { 0,2},{ 1,1}, // bottom middle down more, keep side
+       { 0,1}, { 0,2},{ 1,0}, // bottom middle down more, keep side for one more frame
+       { 0,1}, { 0,1},{ 1,0}, // bottom middle already bottom out, move side down
+    };
+
+    byte patternLen = sizeof(hat);
+    byte numFrames = 7;
+    byte frameLen = patternLen / 2 / numFrames;
+    for (int n = 0; n < 7; n++) // How many times to play this animation?
+        for (int f = 0; f < numFrames; f++)
+            DrawHat3D(*hat, frameLen, f, interval);
+}
+
+
+void DrawHat3D(byte* pattern, byte frameLen, byte frame, int interval)
+{
+    //-- Current frame twice: once to draw, second to erase--
+    for (int d = 0; d < 2; d++)
+    {
+        bool isOn = d == 0;
+        for (int i = 0; i < frameLen; i++)
+        {
+            byte x = pattern[(frame * frameLen + i) * 2 + 0];
+            byte z = pattern[(frame * frameLen + i) * 2 + 1];
+
+            // To turn the quarter flat animation frames on XZ plane to 3D:
+            // - When X is 0: draw a circle on the XY plane at height Z
+            // - When X is 1: draw a 2x2 rect in the middle of the XY plane at height Z also.
+
+            byte x1 = x + 1;
+            byte x2 = x + 2;
+            if (x == 0)
+            {
+                DrawDot(x1, 0, z, isOn); DrawDot(x2, 0, z, isOn); // Front
+                DrawDot(x1, 3, z, isOn); DrawDot(x2, 3, z, isOn); // Rear
+                DrawDot(0, x1, z, isOn); DrawDot(0, x2, z, isOn); // Left
+                DrawDot(3, x1, z, isOn); DrawDot(3, x2, z, isOn); // Right
+            }
+            else
+            {
+                DrawDot(x, 1, z, isOn); DrawDot(x1, 1, z, isOn); // Inner Front
+                DrawDot(x, 2, z, isOn); DrawDot(x1, 2, z, isOn); // Inner Rear
+            }
+
+            //DrawDotOnPlane(x, z, y, alongY, isOn);
+
+            //// Now mirror that 3 times along Z center of the cube
+            //DrawDotOnPlane(3-x, z, y, alongY, isOn); // Front right edge
+            //DrawDotOnPlane(x, z, 3-y, alongY, isOn); // Rear left edge
+
+            //DrawDotOnPlane(3-x, z, 3 - y, alongY, isOn); // Rear right edge
+        }
+
+        if (d == 0) delay(interval);
+    }
+}
+
