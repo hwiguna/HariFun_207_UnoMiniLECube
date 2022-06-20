@@ -49,11 +49,22 @@ const bool noTrail = false;
 const bool on = true;
 const bool off = false;
 
+const bool rightToLeft = true;
+const bool leftToRight = false;
+
 const byte alongZ = 10;
 const byte alongY = 11;
 const byte alongX = 12;
 
 #define DEBUG false
+
+byte wall[][2] = {
+    { 2,3},{ 1,3},{ 0,3 }, // Back
+        { 0,2},{ 0,1},{ 0,0}, // Left
+        { 1,0},{ 2,0},{ 3,0}, // Front
+        { 3,1},{ 3,2},{ 3,3}, // Right
+    };
+
 
 void setup()
 {
@@ -78,24 +89,39 @@ void setup()
 
     All(on);
     delay(1000);
+    All(off);
 }
 
 void loop()
 {
     All(off);
-    Hat2D(150);
-    //Hat3D(150);
+    DropAndVanishCube(100, 1000); // (Interval, Pause)
     //RaiseAndLowerCube(100, 1000); // (Interval, Pause)
+
+    PaintWallAnimations(100);
+
+    All(off);
+    Hat2D(150, 4);
+
+    Sweeps();
+
+    Circles(alongZ, 150); // (alongWhichAxis, interval)
+
+    Spinners();
+
+    JumpingWater();
+
+    //Hat3D(150);
     ////Scan(on, noTrail, 100); // Slowly Scan every pixel
     //Scan(on, hasTrail, 100); // Go through all pixels again, but this time leave it on.
-    //Blinks(500, 3);
-    //Sweeps();
-    //JumpingWater();
-    //Spinners();
-    //Circles(alongY, 150); // (alongWhichAxis, interval)
+
     //CorkScrews(60, 500); // (interval, pause)
-    //ScrollMessage("BE KIND", 250);
-    delay(1000);
+    //CorkScrew(alongX, 60); // Circle is on YZ plane, X left to right
+    CorkScrew(alongZ, 60); // Circle is on XY plane,Z upward
+
+    ScrollMessage("---THANK YOU!!", 225);
+
+    Blinks(500, 3);
 }
 
 void Refresh()
@@ -388,9 +414,9 @@ void CorkScrew(byte alongWhichAxis, int interval)
 
 void CorkScrews(int interval, int pause)
 {
-    CorkScrew(alongZ, interval); delay(pause); // Circle is on XY plane,Z upward
-    CorkScrew(alongY, interval); delay(pause);
-    CorkScrew(alongX, interval); delay(pause);
+    //CorkScrew(alongZ, interval); delay(pause); // Circle is on XY plane,Z upward
+    //CorkScrew(alongY, interval); delay(pause); // Circle is on XZ plane,Y towards rear
+    CorkScrew(alongX, interval); delay(pause);// Circle is on YZ plane, X left to right
 }
 
 
@@ -654,7 +680,11 @@ void ScrollMessage(String message, int interval)
         int alphaIndex = ch - ' ';
         if (alphaIndex < 0) alphaIndex = 0;
 
-        for (int column = 0; column < 7; column++)// Each character is only 5 columns wide, but I loop two more times to create 2 pixel space betwen characters
+        // If this is a blank space, make it only 2 columns wide. Otherwise...
+        // Each character is 5 columns wide, but I loop two more times to create 2 pixel space between characters
+        int columnMax = alphaIndex == 0 ? 3 : 5 + 2;
+
+        for (int column = 0; column < columnMax; column++)
         {
             // Shift one pixel left
             ShiftLeft();
@@ -744,9 +774,59 @@ void RaiseAndLowerCube(int interval, int pause)
     delay(pause);
 }
 
+void DropCube(byte alongWhichAxis, int interval)
+{
+    // Animate rect at TOP of cube
+    SlowDrawRect(3, alongWhichAxis, true, interval);
+    delay(interval);
+
+    // Animate that rect dropping and leaving trail of edges
+    for (int z = 2; z >= 0; z--)
+    {
+        // draw the rect on this layer
+        SlowDrawRect(z, alongWhichAxis, true, 0);
+
+        // Draw the pillar trail
+        int q = z + 1;
+        DrawDotOnPlane(0, 0, q, alongWhichAxis, true);
+        DrawDotOnPlane(0, 3, q, alongWhichAxis, true);
+        DrawDotOnPlane(3, 0, q, alongWhichAxis, true);
+        DrawDotOnPlane(3, 3, q, alongWhichAxis, true);
+
+        delay(interval);
+
+        // erase the rect on this layer except the lowest
+        if (z > 0)
+            SlowDrawRect(z, alongWhichAxis, false, 0);
+    }
+}
+
+void VanishCube(byte alongWhichAxis, int interval)
+{
+    // Animate that rect raising and erasing pillars
+    for (int z = 0; z < 3; z++)
+    {
+        // draw the rect on this layer
+        if (z < 3) SlowDrawRect(z, alongWhichAxis, false, 0);
+        delay(interval);
+    }
+
+    // Animate erasing rect at TOP of cube
+    delay(interval);
+    SlowDrawRect(3, alongWhichAxis, false, interval);
+}
+
+void DropAndVanishCube(int interval, int pause)
+{
+    DropCube(alongZ, interval);
+    delay(pause);
+    VanishCube(alongZ, interval);
+    delay(pause);
+}
 
 
-void Hat2D(int interval)
+
+void Hat2D(int interval, int howManyTimes)
 {
     byte hat[][2] = {
         { 0,0}, { 0,0},{ 1,0}, { 2,0},{ 3,0}, { 3,0}, // bottom line only
@@ -763,7 +843,7 @@ void Hat2D(int interval)
     byte patternLen = sizeof(hat);
     byte numFrames = 7;
     byte frameLen = patternLen / 2 / numFrames;
-    for (int n = 0; n < 7; n++) // How many times to play this animation?
+    for (int n = 0; n < howManyTimes; n++) // How many times to play this animation?
         for (int f = 0; f < numFrames; f++)
         {
             for (int d = 0; d < 2; d++) //-- Current frame twice: once to draw, second to erase--
@@ -848,3 +928,195 @@ void DrawHat3D(byte* pattern, byte frameLen, byte frame, int interval)
     }
 }
 
+void DrawOneSlice(int* pattern, int offset)
+{
+    byte msbOffset = 15 - offset;
+    for (int z = 0; z < 4; z++)
+    {
+        byte bit = bitRead(pattern[z], msbOffset);
+        cube[3][3][3 - z] = bit != 0;
+    }
+}
+
+
+void ShiftOuterWalls(bool rightToLeft)
+{
+    if (DEBUG)
+    {
+        Serial.println();
+        Serial.print("righttoLeft=");
+        Serial.println(rightToLeft);
+    }
+
+    for (int z = 0; z < 4; z++)
+    {
+        bool saved;
+        byte wLen = sizeof(wall) / 2;
+        for (int i = 0; i < wLen; i++)
+        {
+            int t = rightToLeft ? i : wLen - 1 - i;
+            byte targetX = wall[t][0];
+            byte targetY = wall[t][1];
+            if (i == 0) {
+                saved = cube[targetX][targetY][z];
+                if (DEBUG && z == 0) { Serial.print("Save t="); Serial.println(t); }
+            }
+
+            if (i == (wLen - 1))
+            {
+                cube[targetX][targetY][z] = saved;
+                if (DEBUG && z == 0) { Serial.print("restore t="); Serial.println(t); }
+            }
+            else
+            {
+                int s = rightToLeft ? t + 1 : t - 1;
+                byte srcX = wall[s][0];
+                byte srcY = wall[s][1];
+                if (DEBUG && z == 0)
+                {
+                    Serial.print("copy s="); Serial.print(s);
+                    Serial.print("to t="); Serial.println(t);
+                }
+                cube[targetX][targetY][z] = cube[srcX][srcY][z];
+            }
+        }
+    }
+    
+}
+
+
+void AnimateWalls(int interval, bool rightToLeft, int howManyColumns)
+{
+    for (int c = 0; c < howManyColumns; c++)
+    {
+        ShiftOuterWalls(rightToLeft);
+        delay(interval);
+    }
+}
+
+void PaintWall(int *pattern, int interval, bool rightToLeft)
+{
+    for (int column = 0; column < 12; column++)
+    {
+        ShiftOuterWalls(rightToLeft);
+        DrawOneSlice(pattern, column);
+        if (interval>0) delay(interval);
+    }
+}
+
+void PaintWallSpace(int interval, bool rightToLeft)
+{
+    for (int column = 0; column < 4; column++)
+    {
+        ShiftOuterWalls(rightToLeft);
+        DrawLineThruXY(3,3, off);
+        if (interval > 0) delay(interval);
+    }
+}
+
+void PaintWallSine(int interval, bool rightToLeft)
+{
+    //int sineTall[] =
+    //{
+    //    0B0110000110000000,
+    //    0B1001001001000000,
+    //    0B1001001001000000,
+    //    0B0000110000110000,
+    //};
+
+    int sine[] =
+    {
+        0B0000000000000000,
+        0B0110000110000000,
+        0B1001001001000000,
+        0B0000110000110000
+    };
+
+    PaintWall(sine, interval, rightToLeft);
+}
+
+
+void PaintWallBox(int interval, bool rightToLeft)
+{
+    int box[] =
+    {
+        0B1111000000000000,
+        0B1001000000000000,
+        0B1001000000000000,
+        0B1111000000000000,
+    };
+
+    PaintWall(box, interval, rightToLeft);
+}
+
+void PaintWallArrow(int interval, bool rightToLeft)
+{
+    int arrow[] =
+    {
+        0B0000000000000000,
+        0B0100000000000000,
+        0B1111100000000000,
+        0B0100000000000000,
+    };
+
+    PaintWall(arrow, interval, rightToLeft);
+}
+
+
+void PaintWallSlash(int interval, bool rightToLeft)
+{
+    int slash[] =
+    {
+        0B0001000100010000,
+        0B0011001100100000,
+        0B0101010101000000,
+        0B1001100110000000,
+    };
+
+    PaintWall(slash, interval, rightToLeft);
+}
+
+void PaintWallSawtooth(int interval, bool rightToLeft)
+{
+    int sawtooth[] =
+    {
+        0B0001000001000000,
+        0B0010100010100000,
+        0B0100010100010000,
+        0B1000001000001000,
+    };
+
+    int sawtooth2[] =
+    {
+        0B0000000000000000,
+        0B0010001000100000,
+        0B0101010101010000,
+        0B1000100010000000,
+    };
+
+    PaintWall(sawtooth2, interval, rightToLeft);
+}
+
+void PaintWallAnimations(int interval)
+{
+    PaintWallSine(interval, leftToRight);
+    AnimateWalls(interval, leftToRight, 12);
+    PaintWallSpace(interval, leftToRight);
+
+    PaintWallBox(interval, rightToLeft);
+    AnimateWalls(interval, rightToLeft, 12);
+    PaintWallSpace(interval, rightToLeft);
+
+    //PaintWallSawtooth(interval, rightToLeft);
+    //AnimateWalls(interval, rightToLeft, 12);
+    //PaintWallSpace(interval, rightToLeft);
+
+    PaintWallArrow(interval, leftToRight);
+    AnimateWalls(interval, leftToRight, 12);
+    AnimateWalls(interval, rightToLeft, 12);
+    PaintWallSpace(interval, rightToLeft);
+
+    //paintwallslash(interval, righttoleft);
+    //animatewalls(interval, righttoleft, 12);
+    //paintwallspace(interval, righttoleft);
+}
