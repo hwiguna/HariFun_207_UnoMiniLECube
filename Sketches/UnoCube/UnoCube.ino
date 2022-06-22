@@ -18,6 +18,7 @@
 
 #include <MsTimer2.h>
 #include "Font.h"
+#include "Atom.h"
 
 volatile bool cube[4][4][4] ; // This array is transferred to the actual LED cube by MsTimer2 every 3 ms
 
@@ -65,6 +66,10 @@ byte wall[][2] = {
         { 3,1},{ 3,2},{ 3,3}, // Right
     };
 
+Atom atom(50,0);
+Atom atom2(50,0);
+Atom atom3(50,0);
+
 
 void setup()
 {
@@ -93,6 +98,61 @@ void setup()
 }
 
 void loop()
+{
+    MoveAtoms();
+}
+
+void Refresh()
+{
+    static byte layer = 0;
+
+    // Turn off previous layer
+    //pinMode(layerPins[layer], INPUT); // common anode for this layer is now floating instead of HI/LO
+    digitalWrite(layerPins[layer], HIGH);
+
+    // Setup next layer
+    layer++;
+    if (layer > 3) layer = 0;
+
+    // Setup layer pattern for this layer
+    for (byte x = 0; x < 4; x++)
+    {
+        for (byte y = 0; y < 4; y++)
+        {
+            byte pillarPin = pillarPins[y][x];
+            digitalWrite(pillarPin, cube[x][y][layer] ? 1 : 0);
+        }
+    }
+    // Turn on this layer
+    //pinMode(layerPins[layer], OUTPUT);
+    digitalWrite(layerPins[layer], LOW); //TODO: flip this when we add layer transistor
+}
+
+
+void SetupAtoms()
+{
+
+}
+
+void DrawAtom(Atom atom, byte alongWhichAxis)
+{
+    byte* previousDot = atom.GetPreviousPosition();
+    byte* currentDot = atom.GetCurrentPosition();
+
+    DrawDotOnPlane(previousDot[0], previousDot[1], 2, alongWhichAxis, false);
+    DrawDotOnPlane(currentDot[0], currentDot[1], 2, alongWhichAxis, true);
+
+}
+
+void MoveAtoms()
+{
+    if (atom.Forward()) DrawAtom(atom, alongX);
+    //if (atom2.Forward()) DrawAtom(atom2, alongY);
+    //if (atom3.Forward()) DrawAtom(atom3, alongZ);
+}
+
+
+void ShowOff()
 {
     All(off);
     DropAndVanishCube(100, 1000); // (Interval, Pause)
@@ -123,33 +183,6 @@ void loop()
 
     Blinks(500, 3);
 }
-
-void Refresh()
-{
-    static byte layer = 0;
-
-    // Turn off previous layer
-    //pinMode(layerPins[layer], INPUT); // common anode for this layer is now floating instead of HI/LO
-    digitalWrite(layerPins[layer], HIGH);
-
-    // Setup next layer
-    layer++;
-    if (layer > 3) layer = 0;
-
-    // Setup layer pattern for this layer
-    for (byte x = 0; x < 4; x++)
-    {
-        for (byte y = 0; y < 4; y++)
-        {
-            byte pillarPin = pillarPins[y][x];
-            digitalWrite(pillarPin, cube[x][y][layer] ? 1 : 0);
-        }
-    }
-    // Turn on this layer
-    //pinMode(layerPins[layer], OUTPUT);
-    digitalWrite(layerPins[layer], LOW); //TODO: flip this when we add layer transistor
-}
-
 
 //=== Primitives ===
 
@@ -957,7 +990,8 @@ void ShiftOuterWalls(bool rightToLeft)
             int t = rightToLeft ? i : wLen - 1 - i;
             byte targetX = wall[t][0];
             byte targetY = wall[t][1];
-            if (i == 0) {
+            if (i == 0)
+            {
                 saved = cube[targetX][targetY][z];
                 if (DEBUG && z == 0) { Serial.print("Save t="); Serial.println(t); }
             }
@@ -981,7 +1015,7 @@ void ShiftOuterWalls(bool rightToLeft)
             }
         }
     }
-    
+
 }
 
 
@@ -994,13 +1028,13 @@ void AnimateWalls(int interval, bool rightToLeft, int howManyColumns)
     }
 }
 
-void PaintWall(int *pattern, int interval, bool rightToLeft)
+void PaintWall(int* pattern, int interval, bool rightToLeft)
 {
     for (int column = 0; column < 12; column++)
     {
         ShiftOuterWalls(rightToLeft);
         DrawOneSlice(pattern, column);
-        if (interval>0) delay(interval);
+        if (interval > 0) delay(interval);
     }
 }
 
@@ -1009,7 +1043,7 @@ void PaintWallSpace(int interval, bool rightToLeft)
     for (int column = 0; column < 4; column++)
     {
         ShiftOuterWalls(rightToLeft);
-        DrawLineThruXY(3,3, off);
+        DrawLineThruXY(3, 3, off);
         if (interval > 0) delay(interval);
     }
 }
@@ -1119,4 +1153,9 @@ void PaintWallAnimations(int interval)
     //paintwallslash(interval, righttoleft);
     //animatewalls(interval, righttoleft, 12);
     //paintwallspace(interval, righttoleft);
+}
+
+void Race()
+{
+
 }
