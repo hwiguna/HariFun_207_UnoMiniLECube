@@ -18,7 +18,6 @@
 
 #include <MsTimer2.h>
 #include "Font.h"
-#include "Atom.h"
 
 volatile bool cube[4][4][4] ; // This array is transferred to the actual LED cube by MsTimer2 every 3 ms
 
@@ -66,7 +65,6 @@ byte wall[][2] = {
         { 3,1},{ 3,2},{ 3,3}, // Right
     };
 
-Atom *atomArr[6]; // Array of pointers to Atom instances
 
 void setup()
 {
@@ -85,20 +83,17 @@ void setup()
         }
     }
 
-
     MsTimer2::set(3, Refresh); // interval in ms
     MsTimer2::start();
 
     All(on);
     delay(1000);
     All(off);
-
-    SetupAtoms();
 }
 
 void loop()
 {
-    MoveAtoms();
+    ShowOff();
 }
 
 void Refresh()
@@ -127,55 +122,25 @@ void Refresh()
     digitalWrite(layerPins[layer], LOW); //TODO: flip this when we add layer transistor
 }
 
-
-void SetupAtoms()
-{
-    atomArr[0] = new Atom(alongZ,3, 50,3); // Top
-    atomArr[1] = new Atom(alongZ,0, 50,3); // Bottom
-    atomArr[2] = new Atom(alongY,0, 50,3); // Front
-    atomArr[3] = new Atom(alongX,3, 50,3); // Right
-    atomArr[4] = new Atom(alongY,3, 50,3); // Rear
-    atomArr[5] = new Atom(alongX,0, 50,3); // Left
-}
-
-void DrawAtom(Atom atom)
-{
-    byte* previousDot = atom.GetPreviousPosition();
-    byte* currentDot = atom.GetCurrentPosition();
-    byte alongWhichAxis = atom.GetAxis();
-    byte offset = atom.GetOffset();
-
-    DrawDotOnPlane(previousDot[0], previousDot[1], offset, alongWhichAxis, false);
-    if (atom.GetLifeCycles() > 0)
-        DrawDotOnPlane(currentDot[0], currentDot[1], offset, alongWhichAxis, true);
-
-}
-
-void MoveAtoms()
-{
-    if (atomArr[0]->Forward()) DrawAtom(*(atomArr[0]));
-
-    if (atomArr[0]->GetLifeCycles()==0)
-        if (atomArr[1]->Forward()) DrawAtom(*(atomArr[1]));
-}
-
-
 void ShowOff()
 {
     All(off);
     DropAndVanishCube(100, 1000); // (Interval, Pause)
     //RaiseAndLowerCube(100, 1000); // (Interval, Pause)
 
+    Sweeps();
+
     PaintWallAnimations(100);
 
     All(off);
-    Hat2D(150, 4);
-
-    Sweeps();
 
     Circles(alongZ, 150); // (alongWhichAxis, interval)
 
     Spinners();
+
+    //CorkScrews(60, 500); // (interval, pause)
+    //CorkScrew(alongX, 60); // Circle is on YZ plane, X left to right
+    CorkScrew(alongZ, 60); // Circle is on XY plane,Z upward
 
     JumpingWater();
 
@@ -183,9 +148,7 @@ void ShowOff()
     ////Scan(on, noTrail, 100); // Slowly Scan every pixel
     //Scan(on, hasTrail, 100); // Go through all pixels again, but this time leave it on.
 
-    //CorkScrews(60, 500); // (interval, pause)
-    //CorkScrew(alongX, 60); // Circle is on YZ plane, X left to right
-    CorkScrew(alongZ, 60); // Circle is on XY plane,Z upward
+    Hat2D(150, 4);
 
     ScrollMessage("---THANK YOU!!", 225);
 
@@ -389,13 +352,17 @@ void JumpingWater()
         { 3,2},{ 3,1},{ 3,0},
     };
 
-    // PatternUp(byte* pattern, int patternLen, int tailLen, bool wrapAround, byte plane, byte atDepth, int interval)
+    // PatternUp(byte* pattern, int patternLen, int tailLen, bool wrapAround, byte alongWhichAxis, byte atDepth, int interval)
     byte depth = 255;
-    PatternUp(*hop, sizeof(hop) / 2, 3, false, alongY, depth, interval);
-    PatternDown(*hop, sizeof(hop) / 2, 3, false, alongY, depth, interval);
+    PatternUp(*hop, sizeof(hop) / 2, 3, false, alongX, 0, interval);
+    PatternDown(*hop, sizeof(hop) / 2, 3, false, alongX, 1, interval);
+    PatternUp(*hop, sizeof(hop) / 2, 3, false, alongX, 2, interval);
+    PatternDown(*hop, sizeof(hop) / 2, 3, false, alongX, 3, interval);
 
-    PatternUp(*hop, sizeof(hop) / 2, 3, false, alongX, depth, interval);
-    PatternDown(*hop, sizeof(hop) / 2, 3, false, alongX, depth, interval);
+    PatternUp(*hop, sizeof(hop) / 2, 3, false, alongY, 0, interval);
+    PatternDown(*hop, sizeof(hop) / 2, 3, false, alongY, 1, interval);
+    PatternUp(*hop, sizeof(hop) / 2, 3, false, alongY, 2, interval);
+    PatternDown(*hop, sizeof(hop) / 2, 3, false, alongY, 3, interval);
 }
 
 void Spinner(byte alongWhichAxis, int interval)
@@ -475,31 +442,31 @@ void Circles(byte alongWhichAxis, int interval)
     All(off);
 }
 
-void DrawLineThruPlane(byte c, byte r, byte alongWhichAxis, boolean isOn)
+void DrawLineThruPlane(byte a, byte b, byte alongWhichAxis, boolean isOn)
 {
     //Serial.println(  String(c) + "," + String(r) + ": " + (isOn ? "ON" : "off"));
     switch (alongWhichAxis)
     {
-        case alongZ: DrawLineThruXY(c, r, isOn); break; // line is along Z axis
-        case alongY: DrawLineThruXZ(c, r, isOn); break; // Line is along Y axis
-        case alongX: DrawLineThruYZ(c, r, isOn); break; // Line is along X axis
+        case alongZ: DrawLineThruXY(a, b, isOn); break; // line is along Z axis
+        case alongY: DrawLineThruXZ(a, b, isOn); break; // Line is along Y axis
+        case alongX: DrawLineThruYZ(a, b, isOn); break; // Line is along X axis
     }
 }
 
-void DrawDotOnPlane(byte x, byte y, byte p, byte alongWhichAxis, boolean isOn)
+void DrawDotOnPlane(byte a, byte b, byte c, byte alongWhichAxis, boolean isOn)
 {
     //Serial.println(  String(c) + "," + String(r) + ": " + (isOn ? "ON" : "off"));
     switch (alongWhichAxis)
     {
-        case alongZ: DrawDot(x, y, p, isOn); break; // point p is along Z axis
-        case alongY: DrawDot(x, p, y, isOn); break; // point p is along Y axis
-        case alongX: DrawDot(p, x, y, isOn); break; // Point p is along X axis
+        case alongZ: DrawDot(a, b, c, isOn); break; // point c is along Z axis
+        case alongY: DrawDot(a, c, b, isOn); break; // point c is along Y axis
+        case alongX: DrawDot(c, a, b, isOn); break; // Point c is along X axis
     }
 
 }
 
 
-void PatternUp(byte* pattern, int patternLen, int tailLen, bool wrapAround, byte plane, byte atDepth, int interval)
+void PatternUp(byte* pattern, int patternLen, int tailLen, bool wrapAround, byte alongWhichAxis, byte atDepth, int interval)
 {
     if (DEBUG) Serial.println();
     for (int i = 0; i < (patternLen + (wrapAround ? 0 : tailLen)); i++)
@@ -512,9 +479,9 @@ void PatternUp(byte* pattern, int patternLen, int tailLen, bool wrapAround, byte
         byte x = pattern[k * 2 + 0];
         byte y = pattern[k * 2 + 1];
         if (atDepth == 255)
-            DrawLineThruPlane(x, y, plane, false);
+            DrawLineThruPlane(x, y, alongWhichAxis, false);
         else
-            DrawDotOnPlane(x, y, plane, atDepth, false);
+            DrawDotOnPlane(x, y, atDepth, alongWhichAxis, false);
 
         if (i < patternLen)
         {
@@ -523,9 +490,9 @@ void PatternUp(byte* pattern, int patternLen, int tailLen, bool wrapAround, byte
             byte x = pattern[j * 2 + 0];
             byte y = pattern[j * 2 + 1];
             if (atDepth == 255)
-                DrawLineThruPlane(x, y, plane, true);
+                DrawLineThruPlane(x, y, alongWhichAxis, true);
             else
-                DrawDotOnPlane(x, y, plane, atDepth, true);
+                DrawDotOnPlane(x, y, atDepth, alongWhichAxis, true);
 
         }
 
@@ -534,7 +501,7 @@ void PatternUp(byte* pattern, int patternLen, int tailLen, bool wrapAround, byte
     }
 }
 
-void PatternDown(byte* pattern, byte patternLen, int tailLen, bool wrapAround, byte plane, byte atDepth, int interval)
+void PatternDown(byte* pattern, byte patternLen, int tailLen, bool wrapAround, byte alongWhichAxis, byte atDepth, int interval)
 {
     for (int i = patternLen - 1; i >= -tailLen; i--)
     {
@@ -543,9 +510,9 @@ void PatternDown(byte* pattern, byte patternLen, int tailLen, bool wrapAround, b
             byte x = pattern[i * 2 + 0];
             byte y = pattern[i * 2 + 1];
             if (atDepth == 255)
-                DrawLineThruPlane(x, y, plane, true);
+                DrawLineThruPlane(x, y, alongWhichAxis, true);
             else
-                DrawDotOnPlane(x, y, plane, atDepth, true);
+                DrawDotOnPlane(x, y, atDepth, alongWhichAxis, true);
         }
 
         byte k = i + tailLen - 1;
@@ -554,9 +521,9 @@ void PatternDown(byte* pattern, byte patternLen, int tailLen, bool wrapAround, b
             byte x = pattern[k * 2 + 0];
             byte y = pattern[k * 2 + 1];
             if (atDepth == 255)
-                DrawLineThruPlane(x, y, plane, false);
+                DrawLineThruPlane(x, y, alongWhichAxis, false);
             else
-                DrawDotOnPlane(x, y, plane, atDepth, false);
+                DrawDotOnPlane(x, y, atDepth, alongWhichAxis, false);
         }
         delay(interval);
     }
@@ -1088,7 +1055,7 @@ void PaintWallBox(int interval, bool rightToLeft)
         0B1111000000000000,
     };
 
-    PaintWall(box, interval, rightToLeft);
+    PaintWallWithPauses(box, interval, rightToLeft);
 }
 
 void PaintWallArrow(int interval, bool rightToLeft)
@@ -1139,15 +1106,26 @@ void PaintWallSawtooth(int interval, bool rightToLeft)
     PaintWall(sawtooth2, interval, rightToLeft);
 }
 
+void PaintWallWithPauses(int* pattern, int interval, bool rightToLeft)
+{
+    for (int column = 0; column < 12; column++)
+    {
+        ShiftOuterWalls(rightToLeft);
+        DrawOneSlice(pattern, column);
+        if (interval > 0) delay(interval);
+        if ((column % 3) == 0) delay(500);
+    }
+}
+
 void PaintWallAnimations(int interval)
 {
-    PaintWallSine(interval, leftToRight);
-    AnimateWalls(interval, leftToRight, 12);
-    PaintWallSpace(interval, leftToRight);
-
     PaintWallBox(interval, rightToLeft);
     AnimateWalls(interval, rightToLeft, 12);
     PaintWallSpace(interval, rightToLeft);
+
+    PaintWallSine(interval, leftToRight);
+    AnimateWalls(interval, leftToRight, 12);
+    PaintWallSpace(interval, leftToRight);
 
     //PaintWallSawtooth(interval, rightToLeft);
     //AnimateWalls(interval, rightToLeft, 12);
