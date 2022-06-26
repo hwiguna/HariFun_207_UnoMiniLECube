@@ -66,10 +66,7 @@ byte wall[][2] = {
         { 3,1},{ 3,2},{ 3,3}, // Right
     };
 
-Atom atom(50,0);
-Atom atom2(50,0);
-Atom atom3(50,0);
-
+Atom *atomArr[6]; // Array of pointers to Atom instances
 
 void setup()
 {
@@ -95,6 +92,8 @@ void setup()
     All(on);
     delay(1000);
     All(off);
+
+    SetupAtoms();
 }
 
 void loop()
@@ -131,24 +130,33 @@ void Refresh()
 
 void SetupAtoms()
 {
-
+    atomArr[0] = new Atom(alongZ,3, 50,3); // Top
+    atomArr[1] = new Atom(alongZ,0, 50,3); // Bottom
+    atomArr[2] = new Atom(alongY,0, 50,3); // Front
+    atomArr[3] = new Atom(alongX,3, 50,3); // Right
+    atomArr[4] = new Atom(alongY,3, 50,3); // Rear
+    atomArr[5] = new Atom(alongX,0, 50,3); // Left
 }
 
-void DrawAtom(Atom atom, byte alongWhichAxis)
+void DrawAtom(Atom atom)
 {
     byte* previousDot = atom.GetPreviousPosition();
     byte* currentDot = atom.GetCurrentPosition();
+    byte alongWhichAxis = atom.GetAxis();
+    byte offset = atom.GetOffset();
 
-    DrawDotOnPlane(previousDot[0], previousDot[1], 2, alongWhichAxis, false);
-    DrawDotOnPlane(currentDot[0], currentDot[1], 2, alongWhichAxis, true);
+    DrawDotOnPlane(previousDot[0], previousDot[1], offset, alongWhichAxis, false);
+    if (atom.GetLifeCycles() > 0)
+        DrawDotOnPlane(currentDot[0], currentDot[1], offset, alongWhichAxis, true);
 
 }
 
 void MoveAtoms()
 {
-    if (atom.Forward()) DrawAtom(atom, alongX);
-    //if (atom2.Forward()) DrawAtom(atom2, alongY);
-    //if (atom3.Forward()) DrawAtom(atom3, alongZ);
+    if (atomArr[0]->Forward()) DrawAtom(*(atomArr[0]));
+
+    if (atomArr[0]->GetLifeCycles()==0)
+        if (atomArr[1]->Forward()) DrawAtom(*(atomArr[1]));
 }
 
 

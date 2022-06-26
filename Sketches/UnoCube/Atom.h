@@ -1,16 +1,21 @@
 class Atom
 {
     public:
-        Atom(int speed, int acceleration);
+        Atom(byte alongWhichAxis, byte offset, int speed, int lifeCycles);
     bool Forward();
     bool Backward();
+    byte GetAxis();
+    byte GetOffset();
     byte* GetPreviousPosition();
     byte* GetCurrentPosition();
+    int Atom::GetLifeCycles();
     private:
+        byte _alongWhichAxis;
+        byte _offset;
         int _speed;
-    int _acceleration;
+    int _lifeCycles;
     int _previousIndex;
-    int _currentIndex;
+    int _currentIndex = -1;
     unsigned long _timeToMove;
     const byte _path[12][3]= {
         {0,0,3},{0,1,3},{0,2,3},{0,3,3}, // left towards rear
@@ -21,22 +26,22 @@ class Atom
 };
 
 
-Atom::Atom(int speed, int acceleration) {
+Atom::Atom(byte alongWhichAxis, byte offset, int speed, int lifeCycles) {
+    _alongWhichAxis = alongWhichAxis;
+    _offset = offset;
     _speed = speed;
-    _acceleration = acceleration;
+    _lifeCycles = lifeCycles;
     _previousIndex = 0;
     _currentIndex = 0;
     _timeToMove = millis() + _speed;
 }
 
 bool Atom::Forward() {
-    if (millis() > _timeToMove) {
+    if (_lifeCycles > 0 && millis() > _timeToMove) {
         _previousIndex = _currentIndex;
         _currentIndex++;
-        if (_currentIndex>11) _currentIndex=0;
+        if (_currentIndex>11) {_currentIndex=0; _lifeCycles--;}
         _timeToMove = millis() + _speed;
-        _speed += _acceleration;
-        if (_speed <10 || _speed > 500) _acceleration = - _acceleration;
         return true;
     }
     else
@@ -44,13 +49,11 @@ bool Atom::Forward() {
 }
 
 bool Atom::Backward() {
-    if (millis() > _timeToMove) {
+    if (_lifeCycles > 0 && millis() > _timeToMove) {
         _previousIndex = _currentIndex;
         _currentIndex--;
-        if (_currentIndex<0) _currentIndex=11;
+        if (_currentIndex<0) { _currentIndex=11; _lifeCycles--;}
         _timeToMove = millis() + _speed;
-        _speed += _acceleration;
-        if (_speed <10 || _speed > 500) _acceleration = - _acceleration;
         return true;
     }
     else
@@ -65,4 +68,19 @@ byte* Atom::GetPreviousPosition()
 byte* Atom::GetCurrentPosition()
 {
     return _path[_currentIndex];
+}
+
+byte Atom::GetAxis()
+{
+    return _alongWhichAxis;
+}
+
+byte Atom::GetOffset()
+{
+    return _offset;
+}
+
+int Atom::GetLifeCycles()
+{
+    return _lifeCycles;
 }
